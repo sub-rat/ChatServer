@@ -1,0 +1,16 @@
+{
+  "entryFile": "src/server.ts",
+  "noImplicitAdditionalProperties": "throw-on-extras",
+  "controllerPathGlobs": ["src/controllers/**"],
+  "spec": {
+    "outputDirectory": "build",
+    "specVersion": 3
+  },
+  "routes": {
+    "routesDir": "./src/routes"
+  },
+  "swagger": {
+    "host": "localhost:8081",
+    "basePath": "/v1"
+  }
+}
