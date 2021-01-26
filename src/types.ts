@@ -1,7 +1,6 @@
 export interface ChatMessage {
-  roomId: string,
-  message: string,
-  sender: {}
+  message ?: string,
+  sender ?: JSON
 }
 
 export interface ChatMessageServer {

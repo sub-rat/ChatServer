@@ -8,12 +8,14 @@ import sequelize from "./sequelize";
 import {Chat} from "./models/Chat";
 import {App} from "./models/App";
 const swaggerUi = require('swagger-ui-express');
+import * as dotenv from "dotenv";
+dotenv.config();
 
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
 export class ChatServer {
-  public static readonly PORT: number = 8848;
+  public static readonly PORT: number = 8080;
   private readonly _app: express.Application;
   private readonly server: Server;
   private io: SocketIO.Server;
@@ -84,18 +86,21 @@ export class ChatServer {
         }
       }).on(ChatEvent.CONNECT, (socket: any) => {
         console.log('Connected client on port %s.', this.port);
-
         socket.on(ChatEvent.MESSAGE, async (m: ChatMessage) => {
-          console.log('[server](message): %s', JSON.stringify(m));
-          let data : ChatMessageServer = {
-            appId: socket.handshake.query["appKey"],
-            room: socket.handshake.query["roomId"],
-            message:m.message,
-            sender:  typeof m.sender === "string" ? JSON.parse(m.sender): m.sender
-          };
-          const message = await Chat.create(data);
-          if (message) {
-            this.io.to(message.room).emit('message', m);
+          if (m.message && m.sender) {
+            console.log('[server](message): %s', JSON.stringify(m));
+            let data: ChatMessageServer = {
+              appId: socket.handshake.query["appKey"],
+              room: socket.handshake.query["roomId"],
+              message: m.message,
+              sender: typeof m.sender === "string" ? JSON.parse(m.sender) : m.sender
+            };
+            const message = await Chat.create(data);
+            if (message) {
+              this.io.to(message.room).emit('message', m);
+            }
+          }else {
+            return new Error("No message or sender");
           }
         });
 
@@ -125,7 +130,48 @@ export class ChatServer {
               });
           console.log(data);
           socket.emit(data);
-        })
+        });
+
+        socket.on(ChatEvent.UPDATE, async (m: ChatMessage) => {
+          if (m.sender && m.message) {
+            Chat.findOne({where:{
+                sender : typeof m.sender === "string" ? JSON.parse(m.sender) : m.sender,
+              }}).then( chat => {
+              chat.message = m.message;
+              chat.save();
+              socket.to(chat.room).emit(chat);
+            }).catch( error => {
+              return error;
+            })
+          }else {
+            return new Error("Sender not found");
+          }
+        });
+
+        socket.on(ChatEvent.DELETE, async (m: ChatMessage) => {
+          if (m.sender) {
+            Chat.findOne({where:{
+                sender : typeof m.sender === "string" ? JSON.parse(m.sender) : m.sender,
+              }}).then( chat => {
+              chat.destroy();
+              socket.to(chat.room).emit(chat);
+            }).catch( error => {
+              return error;
+            })
+          }else {
+            return new Error("Sender not found");
+          }
+        });
+
+        socket.on(ChatEvent.DELETE_ROOM, async () => {
+           let d =  await Chat.destroy({where:{
+                room : socket.handshake.query["roomId"]
+              }});
+           if (d){
+             return "Room Deleted";
+           }
+           return "Room Not Found";
+        });
 
         socket.on(ChatEvent.DISCONNECT, () => {
           console.log('Client disconnected');
