@@ -29,8 +29,8 @@ export class Chat extends Model{
     message!: string;
 
     @AllowNull(false)
-    @Column(DataType.JSON)
-    sender!: JSON;
+    @Column(DataType.TEXT)
+    sender!: string;
 
     @CreatedAt
     @Column

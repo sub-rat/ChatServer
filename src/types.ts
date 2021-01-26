@@ -1,13 +1,13 @@
 export interface ChatMessage {
   message ?: string,
-  sender ?: JSON
+  sender ?: string
 }
 
 export interface ChatMessageServer {
   appId: string,
   room: string,
   message: string,
-  sender: JSON
+  sender: string
 }
 
 export interface Pagination {

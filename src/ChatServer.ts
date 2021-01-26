@@ -86,21 +86,22 @@ export class ChatServer {
         }
       }).on(ChatEvent.CONNECT, (socket: any) => {
         console.log('Connected client on port %s.', this.port);
-        socket.on(ChatEvent.MESSAGE, async (m: ChatMessage) => {
+        socket.join(socket.handshake.query["roomId"]);
+        socket.on(ChatEvent.SEND_MESSAGE, async (m: ChatMessage) => {
           if (m.message && m.sender) {
             console.log('[server](message): %s', JSON.stringify(m));
             let data: ChatMessageServer = {
               appId: socket.handshake.query["appKey"],
               room: socket.handshake.query["roomId"],
               message: m.message,
-              sender: typeof m.sender === "string" ? JSON.parse(m.sender) : m.sender
+              sender: m.sender
             };
             const message = await Chat.create(data);
             if (message) {
-              this.io.to(message.room).emit('message', m);
+              this.io.to(message.room).emit(ChatEvent.MESSAGE, m);
             }
           }else {
-            return new Error("No message or sender");
+            socket.emit(ChatEvent.ERROR,"No message or sender");
           }
         });
 
@@ -115,7 +116,6 @@ export class ChatServer {
           if (pagination.page < 1) {
             pagination.page = 1
           }
-          socket.emit('hi');
           let data = await Chat.findAll(
               {
                 where: {
@@ -129,37 +129,37 @@ export class ChatServer {
                 nest: true
               });
           console.log(data);
-          socket.emit(data);
+          socket.emit(ChatEvent.LOAD_MORE_DATA,data);
         });
 
         socket.on(ChatEvent.UPDATE, async (m: ChatMessage) => {
           if (m.sender && m.message) {
             Chat.findOne({where:{
-                sender : typeof m.sender === "string" ? JSON.parse(m.sender) : m.sender,
+                sender : m.sender
               }}).then( chat => {
               chat.message = m.message;
               chat.save();
-              socket.to(chat.room).emit(chat);
+              this.io.to(chat.room).emit(ChatEvent.MESSAGE, chat);
             }).catch( error => {
-              return error;
+              socket.emit(ChatEvent.ERROR,error);
             })
           }else {
-            return new Error("Sender not found");
+            socket.emit(ChatEvent.ERROR,"Sender not found");
           }
         });
 
         socket.on(ChatEvent.DELETE, async (m: ChatMessage) => {
           if (m.sender) {
             Chat.findOne({where:{
-                sender : typeof m.sender === "string" ? JSON.parse(m.sender) : m.sender,
+                sender :  m.sender,
               }}).then( chat => {
               chat.destroy();
-              socket.to(chat.room).emit(chat);
+              socket.to(chat.room).emit(ChatEvent.DELETE_CHAT,chat);
             }).catch( error => {
-              return error;
+              socket.emit(ChatEvent.ERROR,error);
             })
           }else {
-            return new Error("Sender not found");
+            socket.emit(ChatEvent.ERROR,"Sender not found");
           }
         });
 
@@ -168,9 +168,9 @@ export class ChatServer {
                 room : socket.handshake.query["roomId"]
               }});
            if (d){
-             return "Room Deleted";
+             socket.emit("Room Deleted");
            }
-           return "Room Not Found";
+          socket.emit(ChatEvent.ERROR,"Room Not Found");
         });
 
         socket.on(ChatEvent.DISCONNECT, () => {
