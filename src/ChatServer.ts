@@ -9,6 +9,7 @@ import {Chat} from "./models/Chat";
 import {App} from "./models/App";
 const swaggerUi = require('swagger-ui-express');
 import * as dotenv from "dotenv";
+import {encodeData, encrypt} from "./utils/encryption";
 dotenv.config();
 
 const cors = require('cors');
@@ -87,18 +88,25 @@ export class ChatServer {
       }).on(ChatEvent.CONNECT, (socket: any) => {
         console.log('Connected client on port %s.', this.port);
         socket.join(socket.handshake.query["roomId"]);
-        socket.on(ChatEvent.SEND_MESSAGE, async (m: ChatMessage) => {
+        socket.on(ChatEvent.MESSAGE, async (m: ChatMessage) => {
           if (m.message && m.sender) {
             console.log('[server](message): %s', JSON.stringify(m));
             let data: ChatMessageServer = {
               appId: socket.handshake.query["appKey"],
               room: socket.handshake.query["roomId"],
-              message: m.message,
-              sender: m.sender
+              message: encrypt(encodeData(m.message)),
+              sender: encodeData(m.sender)
             };
-            const message = await Chat.create(data);
+            let message = await Chat.create(data);
+            delete message.appId;
             if (message) {
-              this.io.to(message.room).emit(ChatEvent.MESSAGE, m);
+              this.io.to(message.room).emit(ChatEvent.MESSAGE, {
+                id:message.appId,
+                room:message.room,
+                message:message.message,
+                sender:message.sender,
+                updatedAt:message.updatedAt,
+                createdAt:message.createdAt});
             }
           }else {
             socket.emit(ChatEvent.ERROR,"No message or sender");
@@ -122,22 +130,22 @@ export class ChatServer {
                   room: socket.handshake.query["roomId"],
                   appId: socket.handshake.query["appKey"]
                 },
-                attributes: ['message', 'sender'],
+                attributes: ['id','message', 'sender', 'createdAt', 'updatedAt'],
                 limit: pagination.limit,
                 offset: (pagination.page-1) * pagination.limit,
                 raw: true,
                 nest: true
               });
           console.log(data);
-          socket.emit(ChatEvent.LOAD_MORE_DATA,data);
+          socket.emit(ChatEvent.LOAD_MORE,data);
         });
 
         socket.on(ChatEvent.UPDATE, async (m: ChatMessage) => {
           if (m.sender && m.message) {
             Chat.findOne({where:{
-                sender : m.sender
+                sender : encodeData(m.sender)
               }}).then( chat => {
-              chat.message = m.message;
+              chat.message = encrypt(encodeData(m.message));
               chat.save();
               this.io.to(chat.room).emit(ChatEvent.MESSAGE, chat);
             }).catch( error => {
@@ -151,10 +159,10 @@ export class ChatServer {
         socket.on(ChatEvent.DELETE, async (m: ChatMessage) => {
           if (m.sender) {
             Chat.findOne({where:{
-                sender :  m.sender,
+                sender :  encodeData(m.sender),
               }}).then( chat => {
               chat.destroy();
-              socket.to(chat.room).emit(ChatEvent.DELETE_CHAT,chat);
+              socket.to(chat.room).emit(ChatEvent.DELETE,chat);
             }).catch( error => {
               socket.emit(ChatEvent.ERROR,error);
             })
@@ -163,7 +171,7 @@ export class ChatServer {
           }
         });
 
-        socket.on(ChatEvent.DELETE_ROOM, async () => {
+        socket.on(ChatEvent.DELETE, async () => {
            let d =  await Chat.destroy({where:{
                 room : socket.handshake.query["roomId"]
               }});
