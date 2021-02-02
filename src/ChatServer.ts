@@ -1,7 +1,7 @@
 import * as express from 'express';
 import * as socketIo from 'socket.io';
 import { ChatEvent } from './constants';
-import { ChatMessage , ChatMessageServer , Pagination} from './types';
+import {ChatMessage, ChatMessageServer, JoinRoom, Pagination, UpdateMessage, User} from './types';
 import { createServer, Server } from 'http';
 import * as SocketIO from "socket.io";
 import sequelize from "./sequelize";
@@ -10,6 +10,7 @@ import {App} from "./models/App";
 const swaggerUi = require('swagger-ui-express');
 import * as dotenv from "dotenv";
 import {encodeData, encrypt} from "./utils/encryption";
+const { addUser, removeUser, getUser, getUserInRoom } = require('./utils/users')
 dotenv.config();
 
 const cors = require('cors');
@@ -77,7 +78,7 @@ export class ChatServer {
         let appKey = socket.handshake.query["appKey"]
         if (appKey){
           let id = await App.findOne({where:{id: appKey}});
-          if (id && socket.handshake.query["roomId"]){
+          if (id){
             return next();
           }else{
             return next(new Error("App key mismatch"));
@@ -87,21 +88,54 @@ export class ChatServer {
         }
       }).on(ChatEvent.CONNECT, (socket: any) => {
         console.log('Connected client on port %s.', this.port);
-        socket.join(socket.handshake.query["roomId"]);
-        socket.on(ChatEvent.MESSAGE, async (m: ChatMessage) => {
-          if (m.message && m.sender) {
+
+        socket.on(ChatEvent.JOIN_ROOM, (joinRoom: JoinRoom) => {
+          const { error, user } = addUser({
+            appId: socket.handshake.query["appKey"],
+            room: joinRoom.roomId,
+            sender: encodeData(joinRoom.sender),
+            id: socket.id
+          })
+
+          if (error) {
+            return error;
+          }
+          socket.join(user.room)
+          socket.emit(ChatEvent.INFO, "You have joined the room")
+          socket.broadcast.to(user.room).emit(ChatEvent.INFO, `${user.sender} has joined!`);
+
+          this.io.to(user.room).emit(ChatEvent.ROOM_DATA, {
+            room: user.room,
+            users: getUserInRoom(user.room)
+          })
+        })
+
+        socket.on(ChatEvent.LEAVE_ROOM, () => {
+          const user = removeUser(socket.id);
+          socket.leave(user.room);
+          if (user) {
+            this.io.to(user.room).emit(ChatEvent.INFO,`${user.sender} has left`);
+            this.io.to(user.room).emit(ChatEvent.ROOM_DATA, {
+              room: user.room,
+              users: getUserInRoom(user.room)
+            })
+          }
+        })
+
+        socket.on(ChatEvent.SEND_MESSAGE, async (m: string) => {
+          const user = getUser(socket.id);
+          if (m && user) {
             console.log('[server](message): %s', JSON.stringify(m));
             let data: ChatMessageServer = {
-              appId: socket.handshake.query["appKey"],
-              room: socket.handshake.query["roomId"],
-              message: encrypt(encodeData(m.message)),
-              sender: encodeData(m.sender)
+              appId: user.appId,
+              room: user.room,
+              message: encrypt(encodeData(m)),
+              sender: user.sender
             };
             let message = await Chat.create(data);
-            delete message.appId;
             if (message) {
               this.io.to(message.room).emit(ChatEvent.MESSAGE, {
-                id:message.appId,
+                id:message.id,
                 room:message.room,
                 message:message.message,
                 sender:message.sender,
@@ -114,6 +148,7 @@ export class ChatServer {
         });
 
         socket.on(ChatEvent.LOAD_MORE,  async (p : Pagination)=>{
+          const user = getUser(socket.id);
           let pagination :Pagination = { limit : 20 , page: 1};
           if ( p.page){
             pagination.page = p.page;
@@ -127,8 +162,8 @@ export class ChatServer {
           let data = await Chat.findAll(
               {
                 where: {
-                  room: socket.handshake.query["roomId"],
-                  appId: socket.handshake.query["appKey"]
+                  room: user.room,
+                  appId: user.appId
                 },
                 attributes: ['id','message', 'sender', 'createdAt', 'updatedAt'],
                 limit: pagination.limit,
@@ -140,12 +175,15 @@ export class ChatServer {
           socket.emit(ChatEvent.LOAD_MORE,data);
         });
 
-        socket.on(ChatEvent.UPDATE, async (m: ChatMessage) => {
-          if (m.sender && m.message) {
+        socket.on(ChatEvent.UPDATE, async (update: UpdateMessage) => {
+          const user = getUser(socket.id);
+          if (update.id && user) {
             Chat.findOne({where:{
-                sender : encodeData(m.sender)
+                id: update.id,
+                sender : user.sender,
+                appId : user.appId
               }}).then( chat => {
-              chat.message = encrypt(encodeData(m.message));
+              chat.message = encrypt(encodeData(update.message));
               chat.save();
               this.io.to(chat.room).emit(ChatEvent.MESSAGE, chat);
             }).catch( error => {
@@ -156,13 +194,15 @@ export class ChatServer {
           }
         });
 
-        socket.on(ChatEvent.DELETE, async (m: ChatMessage) => {
-          if (m.sender) {
+        socket.on(ChatEvent.DELETE_MESSAGE, async (id: number) => {
+          const user = getUser(socket.id);
+          if (user) {
             Chat.findOne({where:{
-                sender :  encodeData(m.sender),
+                id: id,
+                sender :  user.sender,
               }}).then( chat => {
               chat.destroy();
-              socket.to(chat.room).emit(ChatEvent.DELETE,chat);
+              socket.to(chat.room).emit(ChatEvent.DELETE_MESSAGE,chat);
             }).catch( error => {
               socket.emit(ChatEvent.ERROR,error);
             })
@@ -171,9 +211,9 @@ export class ChatServer {
           }
         });
 
-        socket.on(ChatEvent.DELETE, async () => {
-           let d =  await Chat.destroy({where:{
-                room : socket.handshake.query["roomId"]
+        socket.on(ChatEvent.DELETE_CHAT, async (room : string) => {
+           let d =  await Chat.destroy({ where:{
+                room : room, appId: socket.handshake.query["appKey"],
               }});
            if (d){
              socket.emit("Room Deleted");
@@ -182,7 +222,16 @@ export class ChatServer {
         });
 
         socket.on(ChatEvent.DISCONNECT, () => {
-          console.log('Client disconnected');
+          const user = removeUser(socket.id);
+          console.log(user)
+          if (user) {
+            this.io.to(user.room).emit(ChatEvent.INFO,`${user.sender} has left`);
+            this.io.to(user.room).emit("roomData", {
+              room: user.room,
+              users: getUserInRoom(user.room)
+            })
+            socket.leave(user.room);
+          }
         });
       });
     });
