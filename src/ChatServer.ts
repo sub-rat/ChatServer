@@ -112,13 +112,13 @@ export class ChatServer {
 
         socket.on(ChatEvent.LEAVE_ROOM, () => {
           const user = removeUser(socket.id);
-          socket.leave(user.room);
           if (user) {
             this.io.to(user.room).emit(ChatEvent.INFO,`${user.sender} has left`);
             this.io.to(user.room).emit(ChatEvent.ROOM_DATA, {
               room: user.room,
               users: getUserInRoom(user.room)
             })
+            socket.leave(user.room);
           }
         })
 
