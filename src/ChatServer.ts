@@ -165,6 +165,9 @@ export class ChatServer {
                   room: user.room,
                   appId: user.appId
                 },
+                order: [
+                  ['id', 'ASC'],
+                ],
                 attributes: ['id','message', 'sender', 'createdAt', 'updatedAt'],
                 limit: pagination.limit,
                 offset: (pagination.page-1) * pagination.limit,
