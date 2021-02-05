@@ -90,24 +90,26 @@ export class ChatServer {
         console.log('Connected client on port %s.', this.port);
 
         socket.on(ChatEvent.JOIN_ROOM, (joinRoom: JoinRoom) => {
-          const { error, user } = addUser({
-            appId: socket.handshake.query["appKey"],
-            room: joinRoom.roomId,
-            sender: encodeData(joinRoom.sender),
-            id: socket.id
-          })
+          if(joinRoom && joinRoom.roomId && joinRoom.sender) {
+            const {error, user} = addUser({
+              appId: socket.handshake.query["appKey"],
+              room: joinRoom.roomId,
+              sender: encodeData(joinRoom.sender),
+              id: socket.id
+            })
 
-          if (error) {
-            return error;
+            if (error) {
+              return error;
+            }
+            socket.join(user.room)
+            socket.emit(ChatEvent.INFO, "You have joined the room")
+            socket.broadcast.to(user.room).emit(ChatEvent.INFO, `${user.sender} has joined!`);
+
+            this.io.to(user.room).emit(ChatEvent.ROOM_DATA, {
+              room: user.room,
+              users: getUserInRoom(user.room)
+            })
           }
-          socket.join(user.room)
-          socket.emit(ChatEvent.INFO, "You have joined the room")
-          socket.broadcast.to(user.room).emit(ChatEvent.INFO, `${user.sender} has joined!`);
-
-          this.io.to(user.room).emit(ChatEvent.ROOM_DATA, {
-            room: user.room,
-            users: getUserInRoom(user.room)
-          })
         })
 
         socket.on(ChatEvent.LEAVE_ROOM, () => {
@@ -149,33 +151,35 @@ export class ChatServer {
 
         socket.on(ChatEvent.LOAD_MORE,  async (p : Pagination)=>{
           const user = getUser(socket.id);
-          let pagination :Pagination = { limit : 20 , page: 1};
-          if ( p.page){
-            pagination.page = p.page;
+          if (user && user.room) {
+            let pagination: Pagination = {limit: 20, page: 1};
+            if (p.page) {
+              pagination.page = p.page;
+            }
+            if (p.limit) {
+              pagination.limit = p.limit;
+            }
+            if (pagination.page < 1) {
+              pagination.page = 1
+            }
+            let data = await Chat.findAll(
+                {
+                  where: {
+                    room: user.room,
+                    appId: user.appId
+                  },
+                  order: [
+                    ['id', 'ASC'],
+                  ],
+                  attributes: ['id', 'message', 'sender', 'createdAt', 'updatedAt'],
+                  limit: pagination.limit,
+                  offset: (pagination.page - 1) * pagination.limit,
+                  raw: true,
+                  nest: true
+                });
+            console.log(data);
+            socket.emit(ChatEvent.LOAD_MORE, data);
           }
-          if (p.limit){
-            pagination.limit = p.limit;
-          }
-          if (pagination.page < 1) {
-            pagination.page = 1
-          }
-          let data = await Chat.findAll(
-              {
-                where: {
-                  room: user.room,
-                  appId: user.appId
-                },
-                order: [
-                  ['id', 'ASC'],
-                ],
-                attributes: ['id','message', 'sender', 'createdAt', 'updatedAt'],
-                limit: pagination.limit,
-                offset: (pagination.page-1) * pagination.limit,
-                raw: true,
-                nest: true
-              });
-          console.log(data);
-          socket.emit(ChatEvent.LOAD_MORE,data);
         });
 
         socket.on(ChatEvent.UPDATE, async (update: UpdateMessage) => {
