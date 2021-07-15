@@ -11,32 +11,28 @@ import {
 } from 'sequelize-typescript';
 import {App} from "./App";
 import {decodeData, decrypt, encrypt} from "../utils/encryption";
-@DefaultScope(() => ({
-    attributes: ['id', 'room', 'message', 'sender', 'createdAt', 'updatedAt']
-}))
+import {User} from "./User";
+import {Room} from "./Room";
+// @DefaultScope(() => ({
+//     attributes: ['id', 'room', 'message', 'sender', 'createdAt', 'updatedAt']
+// }))
 
 @Table
 export class Chat extends Model{
 
     @AllowNull(false)
-    @Index
-    @ForeignKey(() => App)
+    @ForeignKey(() => Room)
     @Column
-    appId!: string;
-
-    @AllowNull(false)
-    @Index
-    @Column
-    room!: string;
+    roomId!: number;
 
     @AllowNull(false)
     @Column(DataType.TEXT)
     message!: string;
 
-
     @AllowNull(false)
-    @Column(DataType.TEXT)
-    sender!: string;
+    @ForeignKey(() => User)
+    @Column
+    userId!: number;
 
     @CreatedAt
     @Column
