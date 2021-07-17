@@ -50,7 +50,7 @@ export class Chat extends Model{
     static decryptData(instance: any){
         if (instance instanceof Chat){
             instance.message = decrypt(instance.message);
-        }else {
+        }else if (instance != null) {
             instance.forEach((chat: Chat) => {
                 chat.message = decrypt(chat.message);
             });

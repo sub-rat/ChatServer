@@ -1,5 +1,4 @@
 import * as express from 'express';
-// import * as socketIo from 'socket.io';
 import { ChatEvent } from './constants';
 import {ChatMessage, ChatMessageServer, Pagination, UpdateMessage} from './types';
 import { createServer, Server as HttpServer } from 'http';
@@ -98,9 +97,11 @@ export class ChatServer {
             socket.data = user
             return next();
           }else{
+            console.log("token key mismatch");
             return next(new Error("token key mismatch"));
           }
         }else{
+          console.log("No token key found");
           return next( new Error("No token key found"));
         }
       }).on(ChatEvent.CONNECT,(socket: Socket) => {
@@ -138,8 +139,8 @@ export class ChatServer {
 
         socket.on('typing', (typing: boolean) => {
           const user = getUser(socket.id);
-          if(typing) {
-            this.io.to(user.room).emit('is_typing', socket.data);
+          if(user) {
+            this.io.to(user.room).emit('is_typing', {data: socket.data, typing: typing});
           }
         })
 
@@ -169,7 +170,7 @@ export class ChatServer {
           if (m && user) {
             console.log('[server](message): %s', JSON.stringify(m));
             let data: ChatMessageServer = {
-              roomId: user.room,
+              roomId: user.roomId,
               message: encrypt(encodeData(m)),
               userId: user.sender
             };
@@ -203,7 +204,7 @@ export class ChatServer {
                   order: [
                     ['id', 'DESC'],
                   ],
-                  attributes: ['id', 'message', 'sender', 'createdAt', 'updatedAt'],
+                  attributes: ['id', 'message', 'userId', 'createdAt', 'updatedAt'],
                   limit: pagination.limit,
                   offset: (pagination.page - 1) * pagination.limit,
                   raw: true,
@@ -272,6 +273,14 @@ export class ChatServer {
             socket.leave(user.room);
           }
         });
+
+        socket.on("Error", (error)=>{
+           socket.emit(error)
+        })
+
+        socket.on('connect_failed', ()=> {
+          socket.emit("Sorry, there seems to be an issue with the connection!");
+        })
       });
     });
   }

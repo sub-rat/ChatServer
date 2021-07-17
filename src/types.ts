@@ -21,9 +21,9 @@ export interface ChatUser {
 }
 
 export interface ChatMessageServer {
-  roomId: string,
+  roomId: number,
   message: string,
-  userId: string
+  userId: number
 }
 
 export interface Pagination {
