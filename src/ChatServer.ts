@@ -11,7 +11,7 @@ import * as dotenv from "dotenv";
 import {encodeData, encrypt} from "./utils/encryption";
 import {AuthUser} from "./models/AuthUser";
 import {LoginService} from "./service/login.service";
-import AdminBro from "admin-bro";
+// import AdminBro from "admin-bro";
 import {App} from "./models/App";
 import {Room} from "./models/Room";
 import {RoomUser} from "./models/RoomUser";
@@ -28,12 +28,12 @@ export class ChatServer {
   private io: Server;
   private readonly port: string | number;
 
-  constructor (adminBro: AdminBro, router: any) {
+  constructor () {
     this._app = express();
     this.port = process.env.PORT || ChatServer.PORT;
     this._app.use(cors());
     this._app.options('*', cors());
-    this._app.use(adminBro.options.rootPath, router)
+    // this._app.use(adminBro.options.rootPath, router)
     this._app.use(bodyParser.json());
     this._app.use(bodyParser.urlencoded({ extended : true }));
     this.server = createServer(this._app);

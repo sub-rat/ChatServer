@@ -10,6 +10,7 @@
     "baseUrl": ".",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "allowSyntheticDefaultImports": true,
     "paths": {
       "*": [
         "node_modules/",
