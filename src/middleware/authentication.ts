@@ -1,5 +1,6 @@
 import * as express from "express";
 import * as jwt from "jsonwebtoken";
+import {HttpRequestError} from "../utils/errors";
 const secret = process.env.JWT_SECRET || 'my@#$secret';
 
 export function expressAuthentication(
@@ -19,7 +20,7 @@ export function expressAuthentication(
 
         return new Promise((resolve, reject) => {
             if (!token) {
-                reject(new Error("No token provided"));
+                reject(new HttpRequestError(401,"No token provided"));
             }
             jwt.verify(token, secret, function (err: any, decoded: any) {
                 if (err) {

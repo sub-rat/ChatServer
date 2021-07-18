@@ -3,6 +3,7 @@ import {ValidateErrorJSON} from "../interface/validate_error_json.interface";
 import {User} from "../models/User";
 import {App} from "../models/App";
 import {isUuid} from "uuidv4";
+import {HttpRequestError} from "../utils/errors";
 
 interface UserCreateParams {
     appId: string
@@ -26,13 +27,11 @@ export class UserController extends Controller {
         if( body.appId && isUuid(body.appId) ) {
             let app = await App.getApplication(body.appId)
             if (!app) {
-                this.setStatus(404);
-                return {message: "App Not Found"};
+                return new HttpRequestError(404,"App Not Found")
             }
         appId = app.id
         }else {
-            this.setStatus(404);
-            return {message: "App Not Found"};
+            return new HttpRequestError(404,"App Not Found")
         }
         const user = new User()
         user.appId = appId;
@@ -77,8 +76,7 @@ export class UserController extends Controller {
     public async deleteUser( @Path() id: string ): Promise<any>{
         let a = await User.findOne({where:{id: id}})
         if(!a){
-            this.setStatus(404);
-            return { message: "ChatUser Not Found" };
+            return new HttpRequestError(404,"ChatUser Not Found" )
         }
         return await a.destroy();
     }

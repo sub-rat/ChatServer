@@ -1,6 +1,7 @@
 import {Route, Post, Get, Delete, SuccessResponse, Body, Controller, Response, Path, Tags, Security} from "tsoa";
 import {App} from "../models/App";
 import {ValidateErrorJSON} from "../interface/validate_error_json.interface";
+import {HttpRequestError} from "../utils/errors";
 
 interface AppCreateParams {
     name?: string
@@ -33,8 +34,7 @@ export class AppController extends Controller{
     public async deleteApp( @Path() appId: string ): Promise<any>{
         let a = await App.findOne({where:{id: appId}})
         if(!a){
-            this.setStatus(404);
-            return { message: "App Not Found" };
+           return new HttpRequestError(404, "App Not Found")
         }
         let data = await a.destroy();
         return data;

@@ -20,6 +20,7 @@ import {JsonWebTokenError} from "jsonwebtoken";
 // import {Chat} from "./models/Chat";
 // import {LoginService} from "./service/login.service";
 import {DatabaseError} from "sequelize";
+import {HttpRequestError} from "./utils/errors";
 // import {ValidationError} from "admin-bro";
 
 
@@ -81,8 +82,9 @@ app.use(function errorHandler(
         return res.status(400).json({
             message: err?.message ? err.message : "Something went wrong"
         });
-    }else if (err instanceof Error) {
-        return res.status(500).json({
+    }else if (err instanceof HttpRequestError) {
+        console.log(err)
+        return res.status(err.status).json({
             error : err.message ? err  :"Internal Server Error",
         });
     }

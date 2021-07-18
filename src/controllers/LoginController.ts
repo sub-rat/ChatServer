@@ -1,6 +1,7 @@
 import {Tags, Route, Controller, Post, Body, SuccessResponse, Response, Security, Get, Header} from 'tsoa';
 import { LoginService } from '../service/login.service';
 import {AuthUser, IJWToken, ILoginData, IRegisterData} from '../models/AuthUser';
+import {HttpRequestError} from "../utils/errors";
 
 @Route('auth')
 @Tags('auth')
@@ -40,13 +41,12 @@ export class LoginController extends Controller {
      */
     @SuccessResponse('201', 'OK')
     @Security('jwt',['admin'])
-    @Response('401', 'Unathorized')
+    @Header("content-type: application/json")
     @Post('/register')
     public async registerUser(@Body() requestBody: IRegisterData): Promise< IJWToken | null | {}> {
         const user = await AuthUser.findOne({ where: { email: requestBody.email } });
         if(user){
-            this.setStatus(400);
-            return { message: 'ChatUser Already Exists'}
+            return new HttpRequestError(400, 'ChatUser Already Exists')
         }
         return LoginService
             .registerUser(requestBody)
@@ -54,11 +54,10 @@ export class LoginController extends Controller {
                 if (result) {
                     return result;
                 } else {
-                    this.setStatus(401);
-                    return {name: 'InvalidRegister', message: 'Register failed'};
+                   return new HttpRequestError(401,"Register failed")
                 }
             })
-            .catch((err) => err);
+            .catch((err) => new HttpRequestError(err.statusCode, err.message));
     }
 
     @Get("/verify")

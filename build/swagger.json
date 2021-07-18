@@ -349,9 +349,6 @@
 								}
 							}
 						}
-					},
-					"401": {
-						"description": "Unathorized"
 					}
 				},
 				"description": "Register user",
