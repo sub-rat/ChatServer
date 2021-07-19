@@ -8,23 +8,22 @@ export interface UpdateMessage {
   id ?: number
 }
 
-export interface JoinRoom {
-  roomId ?: string,
-  sender ?: string
-}
+// export interface JoinRoom {
+//   roomId ?: string
+// }
 
-export interface User {
+export interface ChatUser {
   id: string,
   appId: string,
   room: string,
-  sender: string
+  roomId: number,
+  sender: number
 }
 
 export interface ChatMessageServer {
-  appId: string,
-  room: string,
+  roomId: number,
   message: string,
-  sender: string
+  userId: number
 }
 
 export interface Pagination {

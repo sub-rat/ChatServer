@@ -1,9 +1,9 @@
-import { User} from "../types";
+import { ChatUser} from "../types";
 
-const users: User[] = [];
-const newUser: User[] = [];
+const users: ChatUser[] = [];
+const newUser: ChatUser[] = [];
 
-const addUser = ( usr: User) => {
+const addUser = ( usr: ChatUser) => {
     //validate data
     if (!usr.sender || !usr.room) {
         return {
@@ -12,7 +12,7 @@ const addUser = ( usr: User) => {
     }
 
     //check for existing users
-    const existingUser = users.find((user: User) => {
+    const existingUser = users.find((user: ChatUser) => {
         return user.room == usr.room && user.sender == usr.sender
     })
 
@@ -24,7 +24,7 @@ const addUser = ( usr: User) => {
     }
 
     //store user
-    const user: User = usr
+    const user: ChatUser = usr
     users.push(user)
     return { user }
 }

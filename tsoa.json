@@ -4,10 +4,18 @@
   "controllerPathGlobs": ["src/controllers/**"],
   "spec": {
     "outputDirectory": "build",
-    "specVersion": 3
+    "specVersion": 3,
+    "securityDefinitions": {
+      "jwt": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization"
+      }
+    }
   },
   "routes": {
-    "routesDir": "./src/routes"
+    "routesDir": "./src/routes",
+    "authenticationModule": "./src/middleware/authentication.ts"
   },
   "swagger": {
     "host": "localhost:8081",
