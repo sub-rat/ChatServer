@@ -1,4 +1,8 @@
 # CHAT SERVER
+https://chat.callsewa.com
+
+https://chat.callsewa.com/swagger
+
 This is a live chat service module which can be used in any projects.
 
 ## Features
