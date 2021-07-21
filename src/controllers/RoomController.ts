@@ -1,12 +1,12 @@
-import {Body, Controller, Delete, Get, Path, Post, Put, Response, Route, SuccessResponse, Tags} from "tsoa";
+import {Body, Controller, Delete, Get, Header, Path, Post, Put, Response, Route, SuccessResponse, Tags} from "tsoa";
 import {ValidateErrorJSON} from "../interface/validate_error_json.interface";
 import {User} from "../models/User";
-import {App} from "../models/App";
 import {Op} from "sequelize";
 import {Room} from "../models/Room";
 import {RoomUser} from "../models/RoomUser";
-import {isUuid} from "uuidv4";
 import {HttpRequestError} from "../utils/errors";
+import {AppController} from "./AppController";
+import {app} from "../server";
 
 interface RoomCreateParams {
     room: string
@@ -25,14 +25,10 @@ export class RoomController extends Controller {
         @Body() body: RoomCreateParams
     ): Promise<any> {
         let appId: number;
-        if( body.appId && isUuid(body.appId)) {
-            let app: App = await App.getApplication(body.appId);
-            if (!app) {
-                return new HttpRequestError(404,"App Not Found")
-            }
-            appId = app.id;
-        }else {
-            return new HttpRequestError(404,"App Not Found")
+        try {
+            appId = await  AppController.getAppID(body.appId)
+        }catch (e) {
+            return e
         }
 
         const existingRoom = await Room.findOne({where: { appId: appId, room: body.room}})
@@ -61,15 +57,27 @@ export class RoomController extends Controller {
     }
 
     @Get()
-    public async getRooms(): Promise<any>{
+    public async getRooms( @Header('appId') appId: string): Promise<any>{
+        let aId: number;
+        try {
+            aId = await AppController.getAppID(appId)
+        }catch (e) {
+            return e
+        }
         this.setStatus(200);
-        return await Room.findAll();
+        return await Room.findAll({ where: { appId: aId }});
     }
 
     @Get('{room}')
-    public async getRoomsByName(@Path() room: string): Promise<any>{
+    public async getRoomsByName(@Path() room: string, @Header('appId') appId: string): Promise<any>{
+        let aId: number;
+        try {
+            aId = await AppController.getAppID(appId)
+        }catch (e) {
+            return e
+        }
         this.setStatus(200);
-        let data = await Room.findOne({where:{room:room }, include: { model: User , }});
+        let data = await Room.findOne({where:{room:room , appId: aId }, include: { model: User }});
         console.log(data.users);
         return  data;
 
@@ -82,15 +90,7 @@ export class RoomController extends Controller {
         @Body() body: RoomCreateParams
     ): Promise<any> {
         let appId: number;
-        if( body.appId && isUuid(body.appId)) {
-            let app: App = await App.getApplication(body.appId);
-            if (!app) {
-                return new HttpRequestError(404,"App Not Found")
-            }
-            appId = app.id;
-        }else {
-            return new HttpRequestError(404,"App Not Found")
-        }
+        appId = await  AppController.getAppID(body.appId)
         const users = [];
         for (const id of body.users) {
             let u = await User.findOne({
@@ -132,25 +132,21 @@ export class RoomController extends Controller {
     public async removeUser(
         @Body() body: RoomCreateParams
     ): Promise<any> {
-        let appId: number;
-        if( body.appId && isUuid(body.appId)) {
-            let app: App = await App.getApplication(body.appId);
-            if (!app) {
-                return new HttpRequestError(404,"App Not Found")
-            }
-            appId = app.id;
-        }else {
-            return new HttpRequestError(404,"App Not Found")
+        let aId: number;
+        try {
+            aId = await AppController.getAppID(body.appId)
+        }catch (e) {
+            return e
         }
         const users = await User.findAll({
             where: {
-                appId: appId,
+                appId: aId,
                 appUserId: {
                     [Op.in]: body.users,
                 }
             }
         });
-        const room = await Room.findOne({where:{room: body.room , appId: appId}});
+        const room = await Room.findOne({where:{room: body.room , appId: aId}});
         if(!room){
             return new HttpRequestError(404,"Room Not Found")
         }
@@ -164,11 +160,18 @@ export class RoomController extends Controller {
     }
 
     @Delete("{id}")
-    public async deleteRoom( @Path() id: string ): Promise<any>{
-        let a = await Room.findOne({where:{id: id}})
+    public async deleteRoom( @Path() id: string , @Header('appId') appId: string): Promise<any>{
+        let aId: number;
+        try {
+            aId = await AppController.getAppID(appId)
+        }catch (e) {
+            return e
+        }
+        let a = await Room.findOne({where:{id: id, appId: aId}})
         if(!a){
             return new HttpRequestError(404,"ChatUser Not Found")
         }
         return await a.destroy();
     }
+
 }

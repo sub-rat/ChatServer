@@ -2,8 +2,8 @@ import {Body, Controller, Delete, Get, Header, Path, Post, Put, Response, Route,
 import {ValidateErrorJSON} from "../interface/validate_error_json.interface";
 import {User} from "../models/User";
 import {App} from "../models/App";
-import {isUuid} from "uuidv4";
 import {HttpRequestError} from "../utils/errors";
+import {AppController} from "./AppController";
 
 interface UserCreateParams {
     appId: string
@@ -23,18 +23,14 @@ export class UserController extends Controller {
     public async createUser(
         @Body() body: UserCreateParams
     ): Promise<any> {
-        let appId: number;
-        if( body.appId && isUuid(body.appId) ) {
-            let app = await App.getApplication(body.appId)
-            if (!app) {
-                return new HttpRequestError(404,"App Not Found")
-            }
-        appId = app.id
-        }else {
-            return new HttpRequestError(404,"App Not Found")
+        let aId: number;
+        try {
+            aId = await AppController.getAppID(body.appId)
+        }catch (e) {
+            return e
         }
         const user = new User()
-        user.appId = appId;
+        user.appId = aId;
         user.firstName = body.firstName;
         user.lastName = body.lastName;
         user.token = body.token;
@@ -63,7 +59,7 @@ export class UserController extends Controller {
     // }
 
     @Get("{appId}")
-    public async getUsers( @Path() appId: string ): Promise<any>{
+    public async getUsers( @Path() appId: string,  ): Promise<any>{
         this.setStatus(200);
         return await User.findAll({
             where: {
@@ -73,8 +69,14 @@ export class UserController extends Controller {
     }
 
     @Delete("{id}")
-    public async deleteUser( @Path() id: string ): Promise<any>{
-        let a = await User.findOne({where:{id: id}})
+    public async deleteUser( @Path() id: string, @Header('appId') appId: string,  ): Promise<any>{
+        let aId: number;
+        try {
+            aId = await AppController.getAppID(appId)
+        }catch (e) {
+            return e
+        }
+        let a = await User.findOne({where:{id: id, appId: aId}})
         if(!a){
             return new HttpRequestError(404,"ChatUser Not Found" )
         }

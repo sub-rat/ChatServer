@@ -26,6 +26,9 @@ Steps:
 4. you have to create room and assign the users in the room
 5. After this you can follow the event documentation mentioned below for chatting
 Happy chatting!!
+   
+For socket connection
+```https://chat.callsewa.com?token=xxxx```
 
 
 ## How to Start?

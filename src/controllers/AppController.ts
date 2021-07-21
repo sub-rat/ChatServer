@@ -2,6 +2,7 @@ import {Route, Post, Get, Delete, SuccessResponse, Body, Controller, Response, P
 import {App} from "../models/App";
 import {ValidateErrorJSON} from "../interface/validate_error_json.interface";
 import {HttpRequestError} from "../utils/errors";
+import {isUuid} from "uuidv4";
 
 interface AppCreateParams {
     name?: string
@@ -38,5 +39,17 @@ export class AppController extends Controller{
         }
         let data = await a.destroy();
         return data;
+    }
+
+    static async getAppID(appId: string){
+        if( appId && isUuid(appId)) {
+            let app: App = await App.getApplication(appId);
+            if (!app) {
+                throw new HttpRequestError(404,"App Not Found")
+            }
+            return app.id
+        }else {
+            throw new HttpRequestError(404,"App Not Found")
+        }
     }
 }
