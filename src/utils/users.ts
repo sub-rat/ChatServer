@@ -13,7 +13,7 @@ const addUser = ( usr: ChatUser) => {
 
     //check for existing users
     const existingUser = users.find((user: ChatUser) => {
-        return user.room == usr.room && user.sender == usr.sender
+        return user.room == usr.room && user.sender == usr.sender && user.id == usr.id
     })
 
     //validate username

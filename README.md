@@ -82,7 +82,6 @@ typing          typing          boolean         true
 seen            -               -               -
 send_message    message         string          "Hey, you there"
 load_more       pagination      JSON            {"page":1,"limit":20} (default limt is 20 is not passed)
-
 ```
 
 LISTENERS
@@ -170,6 +169,10 @@ load_more       [
                     "updatedAt": "2021-07-15T05:58:49.356Z"
                   }
                 ]
+                
+room_info     
+
+seen_by
 ```
 
 ## REST API for SERVER ( for Detail about integration look the swagger )

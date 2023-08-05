@@ -6,12 +6,17 @@ import {Room} from "../models/Room";
 import {RoomUser} from "../models/RoomUser";
 import {HttpRequestError} from "../utils/errors";
 import {AppController} from "./AppController";
-import {app} from "../server";
 
 interface RoomCreateParams {
     room: string
     appId?: string
     users?: number[]
+    extra?: object
+}
+
+interface RoomCheckParams {
+    appId: string
+    users: number[]
 }
 
 @Route("room")
@@ -53,7 +58,11 @@ export class RoomController extends Controller {
             })
             return new HttpRequestError(400, "Users "+ unknownUsers.toString() + " not registered")
         }
-        return await Room.create({room: body.room, appId: appId, users: users});
+        const roomEntity = await Room.create({room: body.room, appId: appId, extra: body.extra});
+        for (const u of users) {
+            await RoomUser.create({ roomId: roomEntity.id, userId: u.id });
+        }
+        return Room.findByPk(roomEntity.id, { include: ['users'] });
     }
 
     @Get()
@@ -66,6 +75,61 @@ export class RoomController extends Controller {
         }
         this.setStatus(200);
         return await Room.findAll({ where: { appId: aId }});
+    }
+
+    @Get('/my_room')
+    public async getRoomsByToken( @Header('token') token: string): Promise<any>{
+        try {
+            let user = await Room.findAll({include: {model : User,  where:{token: token}} , attributes:['id', 'room']});
+            if (user){
+                let uList:Array<number> = [];
+                user.forEach((item)=> {
+                    uList.push(item.id)
+                });
+                let room = Room.findAll({where: {id: {[Op.in]: uList}}, include: {model : User}})
+                this.setStatus(200);
+                return room
+            }
+            this.setStatus(200);
+            return []
+        }catch (e) {
+            return e
+        }
+
+    }
+
+    @Post('/check_room')
+    public async checkRoom(@Body() body: RoomCheckParams): Promise<any>{
+        let aId: number;
+        try {
+            aId = await AppController.getAppID(body.appId)
+        }catch (e) {
+            return e
+        }
+        this.setStatus(200);
+
+        const roomExists = (await Room.findAll({
+            where: {
+                appId: aId,
+                '$users.appUserId$': { [Op.in]: body.users, }
+            },
+            include: [{
+                model: User,
+                as: 'users'
+            }]
+        })).filter((item: Room) => {
+            if (item.users.length === body.users.length) {
+                return item;
+            }
+        });
+
+        if (roomExists && roomExists.length > 0) {
+           return roomExists[0] ?? {};
+
+        } else {
+            this.setStatus(404);
+            return new HttpRequestError(404, "Room Not Found")
+        }
     }
 
     @Get('{room}')
@@ -90,8 +154,12 @@ export class RoomController extends Controller {
         @Body() body: RoomCreateParams
     ): Promise<any> {
         let appId: number;
-        appId = await  AppController.getAppID(body.appId)
-        const users = [];
+        appId = await AppController.getAppID(body.appId)
+
+        const room = await Room.findOne({where:{room: body.room, appId: appId}});
+        if(!room){
+            return new HttpRequestError(404,"Room Not Found")
+        }
         for (const id of body.users) {
             let u = await User.findOne({
                 where: {
@@ -102,23 +170,16 @@ export class RoomController extends Controller {
             if(!u){
                 return new HttpRequestError(404,"ChatUser id " + id + " Not Found")
             }
-            users.push(u);
-        }
 
-        const room = await Room.findOne({where:{room: body.room, appId: appId}});
-        if(!room){
-            return new HttpRequestError(404,"Room Not Found")
-        }
-        for (const u of users) {
             let roomUser = await RoomUser.findOne({where: {
                     roomId: room.id,
                     userId: u.id
                 }, paranoid: false});
             if (!roomUser){
-                await RoomUser.create({where: {
+                await RoomUser.create({
                         roomId: room.id,
                         userId: u.id
-                    }});
+                    });
             }else if (roomUser.deletedAt != null){
                 await roomUser.restore();
             }
@@ -138,6 +199,10 @@ export class RoomController extends Controller {
         }catch (e) {
             return e
         }
+        const room = await Room.findOne({where:{room: body.room , appId: aId}});
+        if(!room){
+            return new HttpRequestError(404,"Room Not Found")
+        }
         const users = await User.findAll({
             where: {
                 appId: aId,
@@ -146,10 +211,6 @@ export class RoomController extends Controller {
                 }
             }
         });
-        const room = await Room.findOne({where:{room: body.room , appId: aId}});
-        if(!room){
-            return new HttpRequestError(404,"Room Not Found")
-        }
         users.forEach((u) => {
             RoomUser.destroy({ where: {
                     roomId: room.id,

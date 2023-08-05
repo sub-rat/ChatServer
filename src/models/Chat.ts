@@ -7,7 +7,7 @@ import {
     Column,
     DataType,
     Index,
-    AllowNull, ForeignKey, BeforeCreate, AfterFind, AfterCreate, DefaultScope
+    AllowNull, ForeignKey, BeforeCreate, AfterFind, AfterCreate, DefaultScope, BelongsTo
 } from 'sequelize-typescript';
 import {App} from "./App";
 import {decodeData, decrypt, encrypt} from "../utils/encryption";
@@ -33,6 +33,10 @@ export class Chat extends Model{
     @ForeignKey(() => User)
     @Column
     userId!: number;
+
+
+    @BelongsTo(() => User)
+    user:User
 
     @CreatedAt
     @Column

@@ -105,6 +105,52 @@
 				"type": "object",
 				"additionalProperties": false
 			},
+			"RoomCreateParams": {
+				"properties": {
+					"room": {
+						"type": "string"
+					},
+					"appId": {
+						"type": "string"
+					},
+					"users": {
+						"items": {
+							"type": "number",
+							"format": "double"
+						},
+						"type": "array"
+					},
+					"extra": {
+						"additionalProperties": false,
+						"type": "object"
+					}
+				},
+				"required": [
+					"room"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"RoomCheckParams": {
+				"properties": {
+					"appId": {
+						"type": "string"
+					},
+					"users": {
+						"items": {
+							"type": "number",
+							"format": "double"
+						},
+						"type": "array"
+					}
+				},
+				"required": [
+					"appId",
+					"users"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
 			"UserCreateParams": {
 				"properties": {
 					"appId": {
@@ -129,28 +175,6 @@
 					"appUserId",
 					"firstName",
 					"lastName"
-				],
-				"type": "object",
-				"additionalProperties": false
-			},
-			"RoomCreateParams": {
-				"properties": {
-					"room": {
-						"type": "string"
-					},
-					"appId": {
-						"type": "string"
-					},
-					"users": {
-						"items": {
-							"type": "number",
-							"format": "double"
-						},
-						"type": "array"
-					}
-				},
-				"required": [
-					"room"
 				],
 				"type": "object",
 				"additionalProperties": false
@@ -407,112 +431,6 @@
 				]
 			}
 		},
-		"/user": {
-			"post": {
-				"operationId": "CreateUser",
-				"responses": {
-					"200": {
-						"description": "Saved user",
-						"content": {
-							"application/json": {
-								"schema": {}
-							}
-						}
-					},
-					"422": {
-						"description": "Validation Failed",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ValidateErrorJSON"
-								}
-							}
-						}
-					}
-				},
-				"tags": [
-					"user"
-				],
-				"security": [],
-				"parameters": [],
-				"requestBody": {
-					"required": true,
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/UserCreateParams"
-							}
-						}
-					}
-				}
-			}
-		},
-		"/user/{appId}": {
-			"get": {
-				"operationId": "GetUsers",
-				"responses": {
-					"200": {
-						"description": "Ok",
-						"content": {
-							"application/json": {
-								"schema": {}
-							}
-						}
-					}
-				},
-				"tags": [
-					"user"
-				],
-				"security": [],
-				"parameters": [
-					{
-						"in": "path",
-						"name": "appId",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				]
-			}
-		},
-		"/user/{id}": {
-			"delete": {
-				"operationId": "DeleteUser",
-				"responses": {
-					"200": {
-						"description": "Ok",
-						"content": {
-							"application/json": {
-								"schema": {}
-							}
-						}
-					}
-				},
-				"tags": [
-					"user"
-				],
-				"security": [],
-				"parameters": [
-					{
-						"in": "path",
-						"name": "id",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					},
-					{
-						"in": "header",
-						"name": "appId",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				]
-			}
-		},
 		"/room": {
 			"post": {
 				"operationId": "CreateRoom",
@@ -578,6 +496,65 @@
 						}
 					}
 				]
+			}
+		},
+		"/room/my_room": {
+			"get": {
+				"operationId": "GetRoomsByToken",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {}
+							}
+						}
+					}
+				},
+				"tags": [
+					"room"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "header",
+						"name": "token",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/room/check_room": {
+			"post": {
+				"operationId": "CheckRoom",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {}
+							}
+						}
+					}
+				},
+				"tags": [
+					"room"
+				],
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RoomCheckParams"
+							}
+						}
+					}
+				}
 			}
 		},
 		"/room/{room}": {
@@ -712,6 +689,112 @@
 				},
 				"tags": [
 					"room"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "header",
+						"name": "appId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/user": {
+			"post": {
+				"operationId": "CreateUser",
+				"responses": {
+					"200": {
+						"description": "Saved user",
+						"content": {
+							"application/json": {
+								"schema": {}
+							}
+						}
+					},
+					"422": {
+						"description": "Validation Failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ValidateErrorJSON"
+								}
+							}
+						}
+					}
+				},
+				"tags": [
+					"user"
+				],
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UserCreateParams"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/user/{appId}": {
+			"get": {
+				"operationId": "GetUsers",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {}
+							}
+						}
+					}
+				},
+				"tags": [
+					"user"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "appId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/user/{id}": {
+			"delete": {
+				"operationId": "DeleteUser",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {}
+							}
+						}
+					}
+				},
+				"tags": [
+					"user"
 				],
 				"security": [],
 				"parameters": [

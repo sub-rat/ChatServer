@@ -42,8 +42,10 @@ export class UserController extends Controller {
             }});
 
         if(existingUser){
-            existingUser.token = user.token;
-            await existingUser.save();
+            if (user.token && user.token !== '') {
+                existingUser.token = user.token;
+                await existingUser.save();
+            }
             return existingUser;
         }
         return await user.save();

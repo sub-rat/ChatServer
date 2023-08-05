@@ -1,6 +1,6 @@
 import * as express from 'express';
 import { ChatEvent } from './constants';
-import {ChatMessage, ChatMessageServer, Pagination, UpdateMessage} from './types';
+import {ChatMessageServer, Pagination, UpdateMessage} from './types';
 import { createServer, Server as HttpServer } from 'http';
 import { Server, Socket } from "socket.io";
 import sequelize from "./sequelize";
@@ -15,7 +15,10 @@ import {LoginService} from "./service/login.service";
 import {App} from "./models/App";
 import {Room} from "./models/Room";
 import {RoomUser} from "./models/RoomUser";
-const { addUser, removeUser, getUser, getUserInRoom } = require('./utils/users')
+import AdminBro from "admin-bro";
+import {Router} from "express";
+const { addUser, removeUser, getUser, getUserInRoom } = require('./utils/users');
+const { verifyUserToken } = require('./utils/httpClient');
 dotenv.config();
 
 const cors = require('cors');
@@ -28,12 +31,12 @@ export class ChatServer {
   private io: Server;
   private readonly port: string | number;
 
-  constructor () {
+  constructor (adminBro: AdminBro,router:Router) {
     this._app = express();
     this.port = process.env.PORT || ChatServer.PORT;
     this._app.use(cors());
     this._app.options('*', cors());
-    // this._app.use(adminBro.options.rootPath, router)
+    this._app.use(adminBro.options.rootPath, router)
     this._app.use(bodyParser.json());
     this._app.use(bodyParser.urlencoded({ extended : true }));
     this.server = createServer(this._app);
@@ -93,7 +96,13 @@ export class ChatServer {
         if (token){
           let user = await User.findOne({where:{token: token}, include: App});
           if (user){
-            // axios.user.app.verifyUrl
+            if (user.app && user.app.verifyUrl) {
+              const authUser = await verifyUserToken({ verifyUrl: user.app.verifyUrl, token: token });
+              if (!authUser) {
+                console.log("token key mismatch");
+                return next(new Error("token key mismatch"));
+              }
+            }
             socket.data = user
             return next();
           }else{
@@ -124,6 +133,8 @@ export class ChatServer {
               }
               socket.join(user.room)
               socket.emit(ChatEvent.INFO, "You have joined the room")
+              let d = await Room.findOne({where: { id: roomData.id }, include: { model: User }});
+              socket.emit('room_info', d)
               socket.broadcast.to(user.room).emit(ChatEvent.INFO, `${user.sender} has joined!`);
               const latestChat = await Chat.findOne({where: { roomId: roomData.id }, order: [['id', 'DESC']]});
               if (latestChat) {
@@ -133,7 +144,11 @@ export class ChatServer {
               room: user.room,
               users: getUserInRoom(user.room)
             })
+            } else {
+              socket.emit(ChatEvent.ERROR, "Invalid room name");
             }
+          } else {
+            socket.emit(ChatEvent.ERROR, "Input room name");
           }
         })
 
@@ -176,7 +191,8 @@ export class ChatServer {
             };
             let message = await Chat.create(data);
             if (message) {
-              this.io.to(user.room).emit(ChatEvent.MESSAGE, message)
+              let chat = await Chat.findOne({where: {id: message.id}, include: User})
+              this.io.to(user.room).emit(ChatEvent.MESSAGE, chat)
             }
           }else {
             socket.emit(ChatEvent.ERROR,"No message or sender");
@@ -204,11 +220,14 @@ export class ChatServer {
                   order: [
                     ['id', 'DESC'],
                   ],
+                  include: {
+                    model: User
+                  },
                   attributes: ['id', 'message', 'userId', 'createdAt', 'updatedAt'],
                   limit: pagination.limit,
                   offset: (pagination.page - 1) * pagination.limit,
                   raw: true,
-                  nest: true
+                  nest: true,
                 });
             console.log(data);
             socket.emit(ChatEvent.LOAD_MORE, data);

@@ -14,7 +14,9 @@ import {
 import {User} from "./User";
 import {Room} from "./Room";
 import {Chat} from "./Chat";
-
+// @DefaultScope(() => ({
+//     attributes: ['userId','roomId', 'chat', 'createdAt', 'updatedAt']
+// }))
 @Table
 export class RoomUser extends Model {
 
@@ -30,13 +32,15 @@ export class RoomUser extends Model {
     roomId: number
 
     @BelongsTo(() => Room)
-    room: User
+    room: Room
 
     @ForeignKey(() => Chat)
     @AllowNull
     @Column
     chatId: number
 
+    @BelongsTo(() => Chat)
+    chat: Chat
 
     @CreatedAt
     @Column

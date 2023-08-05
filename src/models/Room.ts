@@ -7,11 +7,21 @@ import {
     Column,
     DataType,
     Index,
-    AllowNull, ForeignKey, BeforeCreate, AfterFind, AfterCreate, DefaultScope, BelongsTo, HasMany, BelongsToMany
+    AllowNull,
+    ForeignKey,
+    BeforeCreate,
+    AfterFind,
+    AfterCreate,
+    DefaultScope,
+    BelongsTo,
+    HasMany,
+    BelongsToMany,
+    Default
 } from 'sequelize-typescript';
 import {App} from "./App";
 import {User} from "./User";
 import {RoomUser} from "./RoomUser"
+import {DataTypes} from "sequelize";
 // @DefaultScope(() => ({
 //     attributes: ['id', 'room', 'createdAt', 'updatedAt']
 // }))
@@ -32,6 +42,10 @@ export class Room extends Model {
 
     @BelongsToMany(() => User, ()=> RoomUser)
     users: User[]
+
+    @Default({})
+    @Column(DataTypes.JSON)
+    extra: JSON;
 
     @CreatedAt
     @Column
