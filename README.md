@@ -1,16 +1,13 @@
 # CHAT SERVER
-https://chat.callsewa.com
 
-https://chat.callsewa.com/swagger
-
-This is a live chat service module which can be used in any projects.
+This is a live chat service module that can be used in any project.
 
 ## Features
 - one-to-one chat
 - group chat
-- integrated with any system with their system generated token
-- mobile application can use chat service with their own token
-- your server has to communicate with chat server for users and chat rooms
+- integrated with any system with their system-generated token
+- mobile applications can use chat services with their own token
+- your server has to communicate with the chat server for users and chat rooms
 
 ## Technology
 - NodeJs 
@@ -18,17 +15,17 @@ This is a live chat service module which can be used in any projects.
 - Postgres
 - Socket.io
 
-### How to use?
+### How to use it?
 Steps:
-1. Need to Register Your application in chat server along with the token verification url.
-2. You will get login credentials by which you can always retrive application id  and rest as well
-3. With application id you have to first register the user along with token each time the token is issued in your system.
-4. you have to create room and assign the users in the room
+1. Need to Register Your application in the chat server along with the token verification URL.
+2. You will get login credentials by which you can always retrieve application id  and rest as well
+3. With the application id you have to first register the user along with the token each time the token is issued in your system.
+4. you have to create a room and assign the users in the room
 5. After this you can follow the event documentation mentioned below for chatting
 Happy chatting!!
    
 For socket connection
-```https://chat.callsewa.com?token=xxxx```
+```http://localhost:8080?token=xxxx```
 
 
 ## How to Start?
@@ -47,7 +44,7 @@ For Production
 
 To generate swagger
 
-Live swagger URL https://chat.callsewa.com/swagger/
+swagger URL http://localhost:8080/swagger/
 
 ```
     tsoa swagger
@@ -176,7 +173,7 @@ seen_by
 ```
 
 ## REST API for SERVER ( for Detail about integration look the swagger )
-https://chat.callsewa.com/swagger/
+https://localhost:8080/swagger/
 ### App ( Authentication Required)
 ```
 POST        ​/app
